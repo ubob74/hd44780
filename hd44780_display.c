@@ -105,15 +105,6 @@ static int hd44780_data(unsigned char data)
 	return hd44780_send(data, 1, 45);
 }
 
-static void hd44780_blink_test(void)
-{
-	hd44780_bl(1);
-	mdelay(500);
-	hd44780_bl(0);
-	mdelay(500);
-	hd44780_bl(1);
-}
-
 static inline void hd44780_clear(void)
 {
 	hd44780_cmd(0x01);
@@ -139,13 +130,18 @@ ssize_t hd44780_write(struct file *file, const char __user *buf, size_t size, lo
 	if (copy_from_user((void *)&data[0], buf, _size))
 		return -EFAULT;
 
-	pr_err("size=%d (%d) data=%x %x\n", _size, size, data[0], data[1]);
+	pr_err("size=%d (%d)\n", _size, size);
+
+	hd44780_clear();
+	hd44780_home();
 
 	for (i = 0; i < _size; i++) {
+		pr_cont("%c", data[i]);
 		if (data[i] == '\n')
 			continue;
 		hd44780_data(data[i]);
 	}
+	pr_cont("\n");
 
 	return _size;
 }
@@ -180,20 +176,19 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 {
 	int i;
 	unsigned char cmd[] = {
-		0x01, /* clear display */
 		0x02, /* return home */
 		0x20, /* 4-bit mode, 1 line */
-		0x0E, /* display on, cursor on, blinking off */
+		0x0C, /* display on, cursor off, blinking off */
 		0x06, /* cursor increment */
+		0x01, /* clear display */
 	};
 	unsigned char d[] = {0x54, 0x65, 0x73, 0x74, 0x21, 0x2A};
 
 	hd44780_init(client);
 
-	hd44780_blink_test();
-
 	hd44780_clear();
 	hd44780_home();
+	hd44780_bl(1);
 
 	for (i = 0; i < ARRAY_SIZE(cmd); i++)
 		hd44780_cmd(cmd[i]);
